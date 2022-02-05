@@ -11,7 +11,8 @@ import (
 var Database Store
 
 type Store interface {
-	GetJobs() ([]*models.Job, error)
+	CreateJob(job *models.Job) error
+	GetJobs(transcoder, node string, from, to int64) ([]*models.Job, error)
 	GetTranscoder(address string) (*models.Transcoder, error)
 	GetTranscoders() ([]*models.Transcoder, error)
 }

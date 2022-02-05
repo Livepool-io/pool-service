@@ -5,13 +5,16 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/livepool-io/pool-service/common"
 	"github.com/livepool-io/pool-service/db"
 	"github.com/livepool-io/pool-service/middleware"
+	"github.com/livepool-io/pool-service/models"
 )
 
-func GetTranscoders(w http.ResponseWriter, r *http.Request) {
+func Jobs(w http.ResponseWriter, r *http.Request) {
 	// Make sure DB exists
 	if err := db.CacheDB(); err != nil {
 		common.HandleInternalError(w, err)
@@ -32,9 +35,39 @@ func GetTranscoders(w http.ResponseWriter, r *http.Request) {
 func handleGetJobs(w http.ResponseWriter, r *http.Request) {
 	middleware.HandlePreflightGET(w, r)
 
-	// Todo query parameters and create database filter
+	// query parameters and create database filter
+	query := r.URL.Query()
 
-	jobs, err := db.Database.GetJobs()
+	// todo require auth if node is defined
+	t := query.Get("transcoder")
+	n := query.Get("node")
+	fromStr := query.Get("from")
+	toStr := query.Get("to")
+
+	// If time params aren't defined default to last 24h
+	var from int64
+	if fromStr == "" {
+		from = time.Now().Add(-24 * time.Hour).Unix()
+	} else {
+		var err error
+		from, err = strconv.ParseInt(fromStr, 10, 64)
+		if err != nil {
+			common.HandleBadRequest(w, err)
+		}
+	}
+
+	var to int64
+	if toStr == "" {
+		to = time.Now().Unix()
+	} else {
+		var err error
+		to, err = strconv.ParseInt(toStr, 10, 64)
+		if err != nil {
+			common.HandleBadRequest(w, err)
+		}
+	}
+
+	jobs, err := db.Database.GetJobs(t, n, from, to)
 	if err != nil {
 		common.HandleInternalError(w, err)
 		return
@@ -70,7 +103,18 @@ func handlePostJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: insert into Jobs table
+	var job *models.Job
+
+	// Unmarshal the json, return 400 if error
+	if err := json.Unmarshal([]byte(body), job); err != nil {
+		common.HandleBadRequest(w, err)
+		return
+	}
+
+	if err := db.Database.CreateJob(job); err != nil {
+		common.HandleInternalError(w, err)
+	}
+
 	// TODO: update transcoder pending balance
 
 	// Respond with 200 OK

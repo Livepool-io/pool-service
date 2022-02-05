@@ -74,6 +74,42 @@ func (db *Postgres) GetTranscoders() ([]*models.Transcoder, error) {
 	return []*models.Transcoder{}, nil
 }
 
-func (db *Postgres) GetJobs() ([]*models.Job, error) {
-	return []*models.Job{}, nil
+// TODO: don't return 'Node' when request isn't authenticated
+func (db *Postgres) GetJobs(transcoder, node string, from, to int64) ([]*models.Job, error) {
+	qry := fmt.Sprintf(`SELECT job FROM jobs`)
+	if transcoder != "" {
+		qry = fmt.Sprintf(`%s WHERE job->>'transcoder' = '%v'`, qry, transcoder)
+	}
+	// if node is defined require transcoder to be defined
+	if transcoder != "" && node != "" {
+		qry = fmt.Sprintf(`%s AND jobs->>'node' = '%v'`, qry, node)
+	}
+	// timestamp filter
+	if transcoder != "" {
+		qry = fmt.Sprintf(`%s AND job->>'timestamp' >= '%v' AND job->>'timestamp' <= '%v' ORDER BY job->>'timestamp' DESC`, qry, from, to)
+	} else {
+		qry = fmt.Sprintf(`%s WHERE job->>'timestamp' >= '%v' AND job->>'timestamp' <= '%v' ORDER BY job->>'timestamp' DESC`, from, to)
+	}
+
+	rows, err := db.Query(qry)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	jobs := []*models.Job{}
+	for rows.Next() {
+		var job *models.Job
+		if err := rows.Scan(job); err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, nil
+}
+
+func (db *Postgres) CreateJob(job *models.Job) error {
+	qry := fmt.Sprintf("INSERT INTO jobs (job) VALUES($1)")
+	_, err := db.Exec(qry, job)
+	return err
 }
