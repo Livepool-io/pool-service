@@ -74,8 +74,7 @@ func (db *Postgres) GetTranscoders() ([]*models.Transcoder, error) {
 	return []*models.Transcoder{}, nil
 }
 
-// TODO: don't return 'Node' when request isn't authenticated
-func (db *Postgres) GetJobs(transcoder, node string, from, to int64) ([]*models.Job, error) {
+func (db *Postgres) GetJobs(transcoder, node string, from, to int64, isAuth bool) ([]*models.Job, error) {
 	qry := fmt.Sprintf(`SELECT job FROM jobs`)
 	if transcoder != "" {
 		qry = fmt.Sprintf(`%s WHERE job->>'transcoder' = '%v'`, qry, transcoder)
@@ -88,7 +87,7 @@ func (db *Postgres) GetJobs(transcoder, node string, from, to int64) ([]*models.
 	if transcoder != "" {
 		qry = fmt.Sprintf(`%s AND job->>'timestamp' >= '%v' AND job->>'timestamp' <= '%v' ORDER BY job->>'timestamp' DESC`, qry, from, to)
 	} else {
-		qry = fmt.Sprintf(`%s WHERE job->>'timestamp' >= '%v' AND job->>'timestamp' <= '%v' ORDER BY job->>'timestamp' DESC`, from, to)
+		qry = fmt.Sprintf(`%s WHERE job->>'timestamp' >= '%v' AND job->>'timestamp' <= '%v' ORDER BY job->>'timestamp' DESC`, qry, from, to)
 	}
 
 	rows, err := db.Query(qry)
@@ -102,6 +101,9 @@ func (db *Postgres) GetJobs(transcoder, node string, from, to int64) ([]*models.
 		var job *models.Job
 		if err := rows.Scan(job); err != nil {
 			return nil, err
+		}
+		if !isAuth {
+			job.Node = ""
 		}
 		jobs = append(jobs, job)
 	}

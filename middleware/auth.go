@@ -5,10 +5,24 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func IsAuthorized(authHeader string, body []byte) bool {
+func IsHMACAuthorized(authHeader string, body []byte) bool {
 	hash := hmac.New(sha256.New, []byte(os.Getenv("SECRET")))
 	hash.Write(body)
 	return hex.EncodeToString(hash.Sum(nil)) == authHeader
+}
+
+func IsECSDAAuthorized(address, signature string, data []byte) bool {
+	hash := crypto.Keccak256Hash(data)
+
+	sigPublicKeyECDSA, err := crypto.SigToPub(hash.Bytes(), []byte(signature))
+	if err != nil {
+		return false
+	}
+	addr := crypto.PubkeyToAddress(*sigPublicKeyECDSA)
+
+	return addr.Hex() == address
 }

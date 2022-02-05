@@ -38,11 +38,16 @@ func handleGetJobs(w http.ResponseWriter, r *http.Request) {
 	// query parameters and create database filter
 	query := r.URL.Query()
 
-	// todo require auth if node is defined
 	t := query.Get("transcoder")
 	n := query.Get("node")
 	fromStr := query.Get("from")
 	toStr := query.Get("to")
+
+	// todo require auth if node is defined
+	isAuth := false
+	if n != "" {
+		isAuth = middleware.IsECSDAAuthorized(t, r.Header.Get("Authorization"), []byte(query.Encode()))
+	}
 
 	// If time params aren't defined default to last 24h
 	var from int64
@@ -67,7 +72,7 @@ func handleGetJobs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	jobs, err := db.Database.GetJobs(t, n, from, to)
+	jobs, err := db.Database.GetJobs(t, n, from, to, isAuth)
 	if err != nil {
 		common.HandleInternalError(w, err)
 		return
@@ -95,7 +100,7 @@ func handlePostJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check client authorisation (HMAC shared secret)
-	if ok := middleware.IsAuthorized(
+	if ok := middleware.IsHMACAuthorized(
 		r.Header.Get("Authorization"),
 		body,
 	); !ok {
