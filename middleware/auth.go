@@ -15,7 +15,8 @@ func IsHMACAuthorized(authHeader string, body []byte) bool {
 	return hex.EncodeToString(hash.Sum(nil)) == authHeader
 }
 
-func IsECSDAAuthorized(address, signature string, data []byte) bool {
+// TODO: Use Sign-in with Ethereum https://docs.login.xyz/libraries/go
+func IsECDSAAuthorized(address, signature string, data []byte) bool {
 	hash := crypto.Keccak256Hash(data)
 
 	sigPublicKeyECDSA, err := crypto.SigToPub(hash.Bytes(), []byte(signature))

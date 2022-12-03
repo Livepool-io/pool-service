@@ -44,17 +44,22 @@ func (db *Postgres) ensureDatabase() error {
 
 func (db *Postgres) ensureTables() error {
 	_, err := db.Exec(
-		fmt.Sprint(`
+		`
 		CREATE TABLE transcoders (
 			id SERIAL PRIMARY KEY,
 			transcoder JSONB
+		);
+
+		CREATE TABLE nodes (
+			id SERIAL PRIMARY_KEY,
+			node JSONB
 		);
 
 		CREATE TABLE jobs (
 			id SERIAL PRIMARY KEY,
 			job JSONB
 		)
-		`),
+		`,
 	)
 
 	if err != nil && !strings.Contains(err.Error(), "already exists") {
@@ -63,6 +68,12 @@ func (db *Postgres) ensureTables() error {
 	}
 
 	return nil
+}
+
+func (db *Postgres) AddTranscoder(t *models.Transcoder) error {
+	qry := "INSERT INTO transcoders (transcoder) VALUES($1)"
+	_, err := db.Exec(qry, t)
+	return err
 }
 
 func (db *Postgres) GetTranscoder(address string) (*models.Transcoder, error) {
@@ -74,8 +85,20 @@ func (db *Postgres) GetTranscoders() ([]*models.Transcoder, error) {
 	return []*models.Transcoder{}, nil
 }
 
+func (db *Postgres) AddNode(n *models.Node) error {
+	_, err := db.Exec(
+		"INSERT INTO nodes (node) VALUES($1)",
+		n,
+	)
+	return err
+}
+
+func (db *Postgres) GetNodes(transcoder string, region string) ([]*models.Node, error) {
+	return []*models.Node{}, nil
+}
+
 func (db *Postgres) GetJobs(transcoder, node string, from, to int64, isAuth bool) ([]*models.Job, error) {
-	qry := fmt.Sprintf(`SELECT job FROM jobs`)
+	qry := `SELECT job FROM jobs`
 	if transcoder != "" {
 		qry = fmt.Sprintf(`%s WHERE job->>'transcoder' = '%v'`, qry, transcoder)
 	}
@@ -111,7 +134,7 @@ func (db *Postgres) GetJobs(transcoder, node string, from, to int64, isAuth bool
 }
 
 func (db *Postgres) CreateJob(job *models.Job) error {
-	qry := fmt.Sprintf("INSERT INTO jobs (job) VALUES($1)")
+	qry := "INSERT INTO jobs (job) VALUES($1)"
 	_, err := db.Exec(qry, job)
 	return err
 }

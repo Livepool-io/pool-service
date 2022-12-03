@@ -10,6 +10,8 @@ import (
 	"github.com/livepool-io/pool-service/middleware"
 )
 
+// TODO rewrite according to readme and other API routes
+
 func GetTranscoder(w http.ResponseWriter, r *http.Request) {
 	// Make sure DB exists
 	if err := db.CacheDB(); err != nil {
@@ -22,7 +24,7 @@ func GetTranscoder(w http.ResponseWriter, r *http.Request) {
 
 	// Check GET
 	if r.Method != "GET" {
-		common.HandleBadRequest(w, errors.New("Must be a GET request"))
+		common.HandleBadRequest(w, errors.New("must be a GET request"))
 		return
 	}
 
